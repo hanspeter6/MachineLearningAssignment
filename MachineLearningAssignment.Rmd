@@ -1,0 +1,87 @@
+---
+title: "Machine Learning Assignment"
+author: "Hans-Peter Bakker"
+date: "09 December 2016"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+#### Introduction
+This project requires the building of a model to forecast five classes of movement.
+
+The data includes various columns that appear to be features based on statistics measured according to defined and overlapping time lapses.  Velloso, Bulling, Gellersen, Ugulino, Fuks (2013) recommended using a list 17 features to predict the classes of movement, but this approach could not be considered given the structure of the test set that was provided.
+
+#### Reading in the data
+```{r cache = TRUE}
+#library(read.table)
+#train_raw <- read.table("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", na.strings = c("", "NA", "#DIV/0!"), check.names = TRUE, fill = TRUE, blank.lines.skip = TRUE, as.is = TRUE, header = TRUE, sep = ",")
+#test_raw <- read.table("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", na.strings = c("", "NA", "#DIV/0!"), check.names = TRUE, fill = TRUE, blank.lines.skip = TRUE, as.is = TRUE, header = TRUE, sep = ",")
+#write.csv(train_raw, file = "train.raw.csv"); write.csv(test_raw, file = "test.raw.csv")
+````
+
+#### Creating raw data files from the supplied training and test sets
+```{r cache = TRUE}
+train_raw <- read.csv("train.raw.csv")
+test_raw <- read.csv("test.raw.csv")
+```
+
+#### Cleaning up the raw data sets:
+This included the definition of the outcome variable as a factor variable with five levels (A,B,C,D,E), the removal of the first seven columns as well as the columns containing the time laps features mentioned above.
+
+```{r cache = TRUE}
+#turning the "classe" outcome variable into a factor
+train_raw$classe <- factor(train_raw$classe)
+
+#removing the feature (NA) and the first seven columns:
+cut <- c(1:7, 13:37,51:60,70:84,88:102,104:113,126:140,142:151)
+train_raw <- train_raw[,-cut]
+test_raw <- test_raw[,-cut]
+```
+
+#### For cross validation create test and training sets and check dimensions
+In order to be able to explore the out-of-sample error estimates a training (70%) and test set were created using the data partitioning function of R.
+
+```{r cache = TRUE, message = FALSE}
+library(caret)
+set.seed(123)
+inTrain <- createDataPartition(train_raw$classe, p = 0.7, list = FALSE)
+training <- train_raw[inTrain,]
+testing <- train_raw[-inTrain,]
+dim(training) ; dim(testing)
+```
+
+#### Model fitting
+Various models were considered, but given the categorical outcome variable, the preferred options were random forest and linear discriminant analysis. The number of trees for random forest was reduced to 10, given the relatively large data set; and Principal Components Analysis was used to pre-process the linear discriminant analysis.
+
+##### Random Forest
+
+```{r cache = TRUE, message = FALSE, error = FALSE}
+#First try random forest
+modFit1 <- train(classe ~., data = training, method = "rf", prox = TRUE, ntree = 10)
+pred1 <- predict(modFit1, testing)
+confusionMatrix(pred1, testing$classe)
+pred1_test <- predict(modFit1, test_raw)
+pred1_test
+```
+
+#####Linear Discriminant Analysis
+
+```{r cache = TRUE, message = FALSE, error = FALSE}
+#Secondly try linear discriminant analysis
+modFit2 <- train(classe ~., data = training, method = "lda", preProcess = "pca")
+pred2 <- predict(modFit2, testing)
+confusionMatrix(pred2, testing$classe)
+pred2_test <- predict(modFit2, test_raw)
+pred2_test
+```
+
+#### Conclusion
+The random forest suggests an out of sample accuracy of 99.3% while the linear discriminant analysis suggests a 52.4% out-of-sample accuracy.
+
+#### Reference
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+Read more: http://groupware.les.inf.puc-rio.br/har#ixzz4SPhb2VDY
+
+End
